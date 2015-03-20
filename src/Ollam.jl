@@ -19,7 +19,7 @@
 module Ollam
 using Stage, LIBSVM, SVM, DataStructures
 import Base: copy, start, done, next, length, dot
-export LinearModel, RegressionModel, copy, score, best, train_perceptron, test_classification, test_regression,
+export LinearModel, RegressionModel, copy, score, best, train_perceptron, test_classification, test_regression, ilr_test_regression,
        train_svm, train_mira, train_libsvm, lazy_map, indices, 
        print_confusion_matrix, hildreth, setup_hildreth, zero_one_loss, linear_regression_loss, 
        regress_perceptron, regress_mira
@@ -186,6 +186,23 @@ function test_regression(lm :: LinearModel, fvs, truth; lossfn = linear_regressi
   end
 
   return total_se / N
+end
+
+function ilr_test_regression(lm :: LinearModel, fvs, truth; lossfn = linear_regression_loss)
+  N = 0
+  total_se = 0.0
+  se_dict  = DefaultDict(Float64,Array,Float64[0.0,0.0])
+  labels   = Float64[]
+  for (fv, t) in zip(fvs, truth)
+    scores  = score(lm, fv)
+    bidx, b = best(scores)
+    total_se += lossfn(b, t)^2
+    N += 1
+    push!(labels, b)
+    se_dict[t] += [1,lossfn(b, t)^2]
+  end
+
+  return total_se / N, [ {level[1], level[2][2]/level[2][1]} for level in se_dict ], labels
 end
 
 # ----------------------------------------------------------------------------------------------------------------
