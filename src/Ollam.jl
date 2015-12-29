@@ -17,8 +17,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 module Ollam
-using Stage, LIBSVM, SVM, DataStructures
-import Base: copy, start, done, next, length, dot
+using Stage, LIBSVM, DataStructures
+import Base: copy, start, done, next, length, dot, getindex
 export LinearModel, RegressionModel, copy, score, best, train_perceptron, test_classification, test_regression, test_regression_perlev,
        train_svm, train_mira, train_libsvm, lazy_map, indices, 
        print_confusion_matrix, hildreth, setup_hildreth, zero_one_loss, linear_regression_loss, 
@@ -61,7 +61,7 @@ function sqr(a::SparseMatrixCSC)
 end
 dot(a::SparseMatrixCSC, b::Vector) = dot(b, a)
 dot(a::SparseMatrixCSC, b::Matrix) = dot(b, a)
-function dot(a::Union(Vector, SparseMatrixCSC), b::SparseMatrixCSC)
+function dot(a::Union{Vector, SparseMatrixCSC}, b::SparseMatrixCSC)
   total = 0.0
   for i in indices(b)
     total += a[i] * b[i]
@@ -139,7 +139,7 @@ function LinearModel{T}(classes::Dict{T, Int32}, dims)
   return LinearModel(zeros(length(index), dims), zeros(length(index)), classes, index)
 end
 
-RegressionModel(dims) = LinearModel((String=>Int32)["regressor" => 1], dims)
+RegressionModel(dims) = LinearModel(Dict{AbstractString,Int32}("regressor" => 1), dims)
 
 copy(lm :: LinearModel) = LinearModel(copy(lm.weights), copy(lm.b), copy(lm.class_index), copy(lm.index_class))
 score(lm :: LinearModel, fv::Vector) = lm.weights * fv + lm.b
@@ -153,7 +153,7 @@ function acc_update(model :: LinearModel, acc :: LinearModel)
   end
 end
 
-function best{T <: FloatingPoint}(scores :: Vector{T}) 
+function best{T <: AbstractFloat}(scores :: Vector{T}) 
   bidx = indmax(scores)
   return bidx, scores[bidx]
 end
@@ -188,21 +188,24 @@ function test_regression(lm :: LinearModel, fvs, truth; lossfn = linear_regressi
   return total_se / N
 end
 
-function test_regression_perlev(lm :: LinearModel, fvs, truth; lossfn = linear_regression_loss)
+function test_regression_perlev(lm :: LinearModel, fvs, truth; lossfn = linear_regression_loss, record = (truth, hyp) -> nothing, crtcap = false)
   N = 0
   total_se = 0.0
   se_dict  = DefaultDict(Float64,Array,Float64[0.0,0.0])
   labels   = Float64[]
   for (fv, t) in zip(fvs, truth)
-    scores  = score(lm, fv)
+    scores  = crtcap==true ? max(min(score(lm, fv),1.0),0.0) : score(lm, fv)
     bidx, b = best(scores)
     total_se += lossfn(b, t)^2
     N += 1
+
     push!(labels, b)
     se_dict[t] += [1,lossfn(b, t)^2]
+
+    record(t, round(b * 2.0) / 2.0)
   end
 
-  return total_se / N, [ {level[1], level[2][2]/level[2][1]} for level in se_dict ], labels
+  return total_se / N, [ [level[1], level[2][2]/level[2][1]] for level in se_dict ], labels
 end
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -418,7 +421,7 @@ function train_mira(fvs, truth, init_model;
   h       = setup_hildreth(k = min(k, length(model.class_index)), C = C)
   b       = Array(Float64, h.k)
   kidx    = Array(Int32, h.k)
-  distvec = Array(ScaledVec, h.k) #Array(Union(SparseMatrixCSC, Vector), h.k)
+  distvec = Array(ScaledVec, h.k) #Array(Union{SparseMatrixCSC, Vector}, h.k)
   avg_w   = iterations * numfv
   
   for i = 1:iterations
@@ -511,6 +514,7 @@ function regress_mira(fvs, truth, init_model;
     alpha = 0.0
     for (fv, t) in zip(fvs, truth)
       scores        = score(model, fv)
+#      scores        =  max(min(score(model, fv),1.0),0.0)
       w             = (avg_w - (numfv * (i - 1) + fj) + 1)
       bidx, b_score = best(scores)
       loss          = lossfn(b_score, t)

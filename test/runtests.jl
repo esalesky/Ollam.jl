@@ -33,7 +33,7 @@ next(e :: EachCol, state) = (e.matrix[:, state], state + 1)
 done(e :: EachCol, state) = state > length(e) ? true : false
 
 type T
-  name     :: String
+  name     :: AbstractString
   trainer  :: Function
   expected :: Float64
   testset  :: Matrix
@@ -44,8 +44,8 @@ end
 # ----------------------------------------------------------------------------------------------------------------
 h = setup_hildreth(C = Inf, k = 2)
 @expect abs(hildreth((SparseMatrixCSC)[ spzeros(1235, 1),
-                sparsevec([470=>-1.0, 1070=>-1.0, 1231=>-1.0, 1232=>-1.0, 1233=>-1.0, 1234=>-1.0, 1235=>-1.0, 496=>1.0, 
-                           1058=>1.0, 1226=>1.0, 1227=>1.0, 1228=>1.0, 1229=>1.0, 1230=>1.0]) ], [ 0.0, 0.9733606705258293 ], h)[2] - 0.069526) < 0.00001
+                sparsevec(Dict(470=>-1.0, 1070=>-1.0, 1231=>-1.0, 1232=>-1.0, 1233=>-1.0, 1234=>-1.0, 1235=>-1.0, 496=>1.0, 
+                           1058=>1.0, 1226=>1.0, 1227=>1.0, 1228=>1.0, 1229=>1.0, 1230=>1.0)) ], [ 0.0, 0.9733606705258293 ], h)[2] - 0.069526) < 0.00001
 
 # ----------------------------------------------------------------------------------------------------------------
 # test lazy maps
@@ -60,22 +60,22 @@ end
 # ----------------------------------------------------------------------------------------------------------------
 @info "reading Auto-MPG train/test data"
 
-f = gzopen("auto-mpg.data.gz")
+f = gzopen("test/auto-mpg.data.gz")
 const mpg_data = readdlm(f)'
 close(f)
 
 srand(0)
-const rand         = shuffle([1:size(mpg_data, 2)])
-const rall         = float64(mpg_data[2:end-1, :])[:, rand]
-const rall_truth   = vec(float64(mpg_data[1, :]))[rand]
+const rand         = shuffle(collect(1:size(mpg_data, 2)))
+const rall         = map(Float64,mpg_data[2:end-1, :])[:, rand]
+const rall_truth   = vec(map(Float64,mpg_data[1, :]))[rand]
 const norm_truth   = (rall_truth - minimum(rall_truth)) / (maximum(rall_truth) - minimum(rall_truth))
 const m            = zeros(size(rall)) 
 const s            = ones(size(rall))
 const norm_all     = [ (rall[i, j] - m[i]) / s[i] for i = 1:size(rall, 1), j = 1:size(rall, 2) ]
-const rtrain       = norm_all[:, 1:int(size(rall, 2)*0.8)]
-const rtrain_truth = norm_truth[1:int(size(rall, 2)*0.8)]
-const rtest        = norm_all[:, int(size(rall, 2)*0.8)+1:end]
-const rtest_truth  = norm_truth[int(size(rall, 2)*0.8)+1:end]
+const rtrain       = norm_all[:, 1:round(Int,size(rall, 2)*0.8)]
+const rtrain_truth = norm_truth[1:round(Int,size(rall, 2)*0.8)]
+const rtest        = norm_all[:, round(Int,size(rall, 2)*0.8)+1:end]
+const rtest_truth  = norm_truth[round(Int,size(rall, 2)*0.8)+1:end]
 @debug "size of train: $(size(rtrain)), test: $(size(rtest))"
 
 # ----------------------------------------------------------------------------------------------------------------

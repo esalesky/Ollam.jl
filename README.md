@@ -26,7 +26,7 @@ the julia central repository.  You can install via:
 
 ```julia
 Pkg.clone("https://github.com/saltpork/Stage.jl")
-Pkg.clone("https://github.com/mit-nlp/Ollam.jl")
+Pkg.clone("https://g62code.llan.ll.mit.edu/esalesky/Ollam.jl.git")
 ```
 
 This process should install all dependent packages in addition to `Ollam`.
