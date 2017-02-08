@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 module Ollam
-using Stage, LIBSVM, DataStructures
+using Stage, DataStructures #LIBSVM
 import Base: copy, start, done, next, length, dot, getindex
 export LinearModel, RegressionModel, copy, score, best, train_perceptron, test_classification, test_regression,
        train_svm, train_mira, train_libsvm, lazy_map, indices, 
@@ -527,6 +527,7 @@ end
 # ----------------------------------------------------------------------------------------------------------------
 # SVM
 # ----------------------------------------------------------------------------------------------------------------
+#=
 immutable SVMNode
   index::Int32
   value::Float64
@@ -687,5 +688,5 @@ function train_svm(fvs, truth; C = 0.01, batch_size = -1, norm = 2, iterations =
 
   return model
 end
-
+=#
 end # module end
